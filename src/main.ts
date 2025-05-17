@@ -41,6 +41,8 @@ type nationalies =
   |"South Korean"
   |"Chinese"
 
+const allowedNationalities: nationalies[] = ["American", "British", "Australian", "Israeli", "South African", "French", "Indian", "Spanish", "South Korean", "Chinese"];
+
 
 type Actress = Person & {
   most_famous_movies: [string, string, string],
@@ -56,6 +58,13 @@ type Actress = Person & {
 
 
 ////controllo se isUtente rispecchia Utente
+
+// La funzione isActress è una type guard (guardia di tipo) che verifica 
+// se un oggetto sconosciuto(unknown) rispetta la struttura del tipo Actress.
+// In pratica, controlla due cose:
+// Forma dell'oggetto: Presenza di tutte le proprietà obbligatorie
+// Tipi dei valori: Corrispondenza dei tipi dichiarati(es.id deve essere number)
+
 //questa cosa unknow che ho passato e di tipo Actress on no?
 function isActress(result: unknown): result is Actress{ //result is Actress dicitura per creare funzione che ci ritorna un booleano
   if(
@@ -66,7 +75,7 @@ function isActress(result: unknown): result is Actress{ //result is Actress dici
     "id" in result && //c`e`la proprieta id? e se c`e` e un numero?
     typeof result.id === "number" &&
     "name" in result &&
-    typeof "name" === "string" &&
+    typeof result.name === "string" &&
     "birth_year" in result &&
     typeof result.birth_year === "number" &&
     "death_year" in result &&
@@ -84,9 +93,12 @@ function isActress(result: unknown): result is Actress{ //result is Actress dici
     "awards" in result &&
     typeof result.awards === "string" &&
     "nationality" in result &&
-        typeof result.nationality === "string"
-
-        result.nationality e incluso in quella array
+    typeof result.nationality === "string" &&
+if (!allowedNationalities.includes(result.nationality)) return false;
+// Verifichiamo se il valore di result.nationality è presente nell'array allowedNationalities.
+  // allowedNationalities.includes("Russian") // → false → la funzione ritorna false
+// Se NON è presente(!indica negazione), ritorniamo false perché la nazionalità non è valida.
+        // result.nationality e incluso in quella array
   ) {
     return true
   } 
@@ -126,3 +138,55 @@ return null
 // La funzione deve restituire un array di oggetti Actress.
 
 // Può essere anche un array vuoto.
+
+async function getAllActresses():Promise <Actress[]> { //array di Actress, null non serve perche ritornera un array vuoto quando non trova nessun attrice
+ try{
+   const response = await fetch(`https://boolean-spec-frontend.vercel.app/freetestapi/actresses`)
+   if(!response.ok){
+    throw new Error(`errore http${response.status}: ${response.statusText}`)//errore catturato e return array vuoto
+   }
+   const dati:unknown = await response.json()
+   //1.controllo se e array
+   if(!(dati instanceof Array)) //dati non e un array
+   {
+    throw new Error("errnon e un array")
+   }
+   //2. controllo se e` array di attrici > filtro tutto cio che e'attrice e se non lo e' lo togliamo
+
+   //filteredActresses e uguale a array di attrici - a filter ci passiamo la callback isActress(ritorna booleano)
+   //per ogni attrice ritornami isActress di attrice
+   const filteredActresses: Actress[] = dati.filter((a) => isActress(a)) //dati.filter(isActress)
+   //la funzione isActress sa che stiamo parlando di array quindi questo :Acress[] possiamo anche toglierlo
+   return filteredActresses
+ }catch(error) {
+  if(error instanceof Error){
+    console.error('errore durante recupero dell attrice', error)
+  }else{
+    console.error("errore sconosciuto", error)
+  }
+  return []
+ }
+}
+
+// Milestone 5
+// Crea una funzione getActresses che riceve un array di numeri(gli id delle attrici).
+// Per ogni id nell’array, usa la funzione getActress che hai creato nella Milestone 3 per recuperare l’attrice corrispondente.
+// L'obiettivo è ottenere una lista di risultati in parallelo, quindi dovrai usare Promise.all.
+// La funzione deve restituire un array contenente elementi di tipo Actress oppure null(se l’attrice non è stata trovata).
+
+
+
+async function getActresses(ids:number[]):Promise <(Actress | null) []> {//array anche vuoto con ciascun elemento che puo essere actress o null
+try{//creo array di promesse a partire da array di ids > per ogni id devo fare fetch e ottenere response
+ const promises = ids.map((id) => getActress(id))
+ const actresses = await Promise.all(promises)
+ return actresses;
+} catch (error) {
+  if (error instanceof Error) {
+    console.error('errore durante recupero dell attrice', error)
+  } else {
+    console.error("errore sconosciuto", error)
+  }
+  return []
+}
+}
